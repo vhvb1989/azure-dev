@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/azure/azure-dev/cli/azd/pkg/environment"
+	"github.com/azure/azure-dev/cli/azd/pkg/infra/provisioning"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/build"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/taskagent"
@@ -51,7 +52,8 @@ func CreatePipeline(
 	repoName string,
 	connection *azuredevops.Connection,
 	credentials AzureServicePrincipalCredentials,
-	env environment.Environment) (*build.BuildDefinition, error) {
+	env environment.Environment,
+	provisioningProvider provisioning.Options) (*build.BuildDefinition, error) {
 
 	client, err := build.NewClient(ctx, connection)
 	if err != nil {
@@ -74,9 +76,11 @@ func CreatePipeline(
 
 	variables := make(map[string]build.BuildDefinitionVariable)
 	variables["AZURE_SUBSCRIPTION_ID"] = createBuildDefinitionVariable(credentials.SubscriptionId, false, false)
-	variables["ARM_TENANT_ID"] = createBuildDefinitionVariable(credentials.TenantId, false, false)
-	variables["ARM_CLIENT_ID"] = createBuildDefinitionVariable(credentials.ClientId, true, false)
-	variables["ARM_CLIENT_SECRET"] = createBuildDefinitionVariable(credentials.ClientSecret, true, false)
+	if provisioningProvider.Provider == provisioning.Terraform {
+		variables["ARM_TENANT_ID"] = createBuildDefinitionVariable(credentials.TenantId, false, false)
+		variables["ARM_CLIENT_ID"] = createBuildDefinitionVariable(credentials.ClientId, true, false)
+		variables["ARM_CLIENT_SECRET"] = createBuildDefinitionVariable(credentials.ClientSecret, true, false)
+	}
 	variables["AZURE_LOCATION"] = createBuildDefinitionVariable(env.GetLocation(), false, false)
 	variables["AZURE_ENV_NAME"] = createBuildDefinitionVariable(env.GetEnvName(), false, false)
 

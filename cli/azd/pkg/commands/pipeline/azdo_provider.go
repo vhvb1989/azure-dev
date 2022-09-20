@@ -602,7 +602,7 @@ func parseCredentials(ctx context.Context, credentials json.RawMessage) (*azdo.A
 }
 
 // configurePipeline create Azdo pipeline
-func (p *AzdoCiProvider) configurePipeline(ctx context.Context, repoDetails *gitRepositoryDetails) error {
+func (p *AzdoCiProvider) configurePipeline(ctx context.Context, repoDetails *gitRepositoryDetails, provisioningProvider provisioning.Options) error {
 	details := repoDetails.details.(*AzdoRepositoryDetails)
 
 	org, err := azdo.EnsureAzdoOrgNameExists(ctx, p.Env)
@@ -617,7 +617,8 @@ func (p *AzdoCiProvider) configurePipeline(ctx context.Context, repoDetails *git
 	if err != nil {
 		return err
 	}
-	buildDefinition, err := azdo.CreatePipeline(ctx, details.projectId, azdo.AzurePipelineName, details.repoName, connection, *p.credentials, *p.Env)
+	buildDefinition, err := azdo.CreatePipeline(
+		ctx, details.projectId, azdo.AzurePipelineName, details.repoName, connection, *p.credentials, *p.Env, provisioningProvider)
 	if err != nil {
 		return err
 	}
