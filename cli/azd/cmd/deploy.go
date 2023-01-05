@@ -127,16 +127,12 @@ type DeploymentResult struct {
 }
 
 func (d *deployAction) Run(ctx context.Context) (*actions.ActionResult, error) {
-	if err := ensureProject(d.azdCtx.ProjectPath()); err != nil {
-		return nil, err
-	}
-
-	env, ctx, err := loadOrInitEnvironment(ctx, &d.flags.environmentName, d.azdCtx, d.console, d.azCli)
+	env, err := loadOrInitEnvironment(ctx, &d.flags.environmentName, d.azdCtx, d.console, d.azCli)
 	if err != nil {
 		return nil, fmt.Errorf("loading environment: %w", err)
 	}
 
-	projConfig, err := project.LoadProjectConfig(d.azdCtx.ProjectPath(), env)
+	projConfig, err := project.LoadProjectConfig(d.azdCtx.ProjectPath())
 	if err != nil {
 		return nil, fmt.Errorf("loading project: %w", err)
 	}

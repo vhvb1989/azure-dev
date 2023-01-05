@@ -82,15 +82,11 @@ func newMonitorAction(
 }
 
 func (m *monitorAction) Run(ctx context.Context) (*actions.ActionResult, error) {
-	if err := ensureProject(m.azdCtx.ProjectPath()); err != nil {
-		return nil, err
-	}
-
 	if !m.flags.monitorLive && !m.flags.monitorLogs && !m.flags.monitorOverview {
 		m.flags.monitorOverview = true
 	}
 
-	env, ctx, err := loadOrInitEnvironment(ctx, &m.flags.environmentName, m.azdCtx, m.console, m.azCli)
+	env, err := loadOrInitEnvironment(ctx, &m.flags.environmentName, m.azdCtx, m.console, m.azCli)
 	if err != nil {
 		return nil, fmt.Errorf("loading environment: %w", err)
 	}

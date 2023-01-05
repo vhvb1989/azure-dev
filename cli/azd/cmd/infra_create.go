@@ -100,22 +100,18 @@ func newInfraCreateAction(
 }
 
 func (i *infraCreateAction) Run(ctx context.Context) (*actions.ActionResult, error) {
-	if err := ensureProject(i.azdCtx.ProjectPath()); err != nil {
-		return nil, err
-	}
-
 	// Command title
 	i.console.MessageUxItem(ctx, &ux.MessageTitle{
 		Title:     "Provisioning Azure resources (azd provision)",
 		TitleNote: "Provisioning Azure resources can take some time"},
 	)
 
-	env, ctx, err := loadOrInitEnvironment(ctx, &i.flags.environmentName, i.azdCtx, i.console, i.azCli)
+	env, err := loadOrInitEnvironment(ctx, &i.flags.environmentName, i.azdCtx, i.console, i.azCli)
 	if err != nil {
 		return nil, fmt.Errorf("loading environment: %w", err)
 	}
 
-	prj, err := project.LoadProjectConfig(i.azdCtx.ProjectPath(), env)
+	prj, err := project.LoadProjectConfig(i.azdCtx.ProjectPath())
 	if err != nil {
 		return nil, fmt.Errorf("loading project: %w", err)
 	}

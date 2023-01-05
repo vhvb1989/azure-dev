@@ -23,9 +23,9 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
-func NewRootCmd() *cobra.Command {
+func NewRootCmd(staticHelp bool) *cobra.Command {
 	prevDir := ""
-	opts := &internal.GlobalCommandOptions{}
+	opts := &internal.GlobalCommandOptions{GenerateStaticHelp: staticHelp}
 
 	cmd := &cobra.Command{
 		Use:   "azd",
@@ -153,7 +153,12 @@ func BuildCmd[F any](
 		actionResult, err := action.Run(ctx)
 		// At this point, we know that there might be an error, so we can silence cobra from showing it after us.
 		cmd.SilenceErrors = true
-		console.MessageUxItem(ctx, actions.ToActionResult(actionResult, err))
+
+		// It is valid for a command to return a nil action result and error. If we have a result or an error, display it,
+		// otherwise don't print anything.
+		if actionResult != nil || err != nil {
+			console.MessageUxItem(ctx, actions.ToUxItem(actionResult, err))
+		}
 
 		return err
 	}
@@ -175,7 +180,13 @@ func runCmdWithTelemetry(cmd *cobra.Command, runCmd func(ctx context.Context) er
 	// Note: CommandPath is constructed using the Use member on each command up to the root.
 	// It does not contain user input, and is safe for telemetry emission.
 	spanCtx, span := telemetry.GetTracer().Start(cmd.Context(), events.GetCommandEventName(cmd.CommandPath()))
-	defer span.End()
+	end := func() {
+		// Include any usage attributes set
+		span.SetAttributes(telemetry.GetUsageAttributes()...)
+		span.End()
+	}
+
+	defer end()
 
 	err := runCmd(spanCtx)
 	if err != nil {

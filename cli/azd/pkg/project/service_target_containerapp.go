@@ -72,10 +72,15 @@ func (at *containerAppTarget) Deploy(
 		return ServiceDeploymentResult{}, fmt.Errorf("logging into registry '%s': %w", loginServer, err)
 	}
 
+	imageTag, err := at.generateImageTag()
+	if err != nil {
+		return ServiceDeploymentResult{}, fmt.Errorf("generating image tag: %w", err)
+	}
+
 	fullTag := fmt.Sprintf(
 		"%s/%s",
 		loginServer,
-		at.generateImageTag(),
+		imageTag,
 	)
 
 	// Tag image.
@@ -96,7 +101,7 @@ func (at *containerAppTarget) Deploy(
 	log.Printf("writing image name to environment")
 
 	// Save the name of the image we pushed into the environment with a well known key.
-	at.env.Values[fmt.Sprintf("SERVICE_%s_IMAGE_NAME", strings.ToUpper(at.config.Name))] = fullTag
+	at.env.Values[fmt.Sprintf("SERVICE_%s_IMAGE_NAME", strings.ReplaceAll(strings.ToUpper(at.config.Name), "-", "_"))] = fullTag
 
 	if err := at.env.Save(); err != nil {
 		return ServiceDeploymentResult{}, fmt.Errorf("saving image name to environment: %w", err)
@@ -197,9 +202,14 @@ func (at *containerAppTarget) Endpoints(ctx context.Context) ([]string, error) {
 	}
 }
 
-func (at *containerAppTarget) generateImageTag() string {
-	if at.config.Docker.Tag != "" {
-		return at.config.Docker.Tag
+func (at *containerAppTarget) generateImageTag() (string, error) {
+	configuredTag, err := at.config.Docker.Tag.Envsubst(at.env.Getenv)
+	if err != nil {
+		return "", err
+	}
+
+	if configuredTag != "" {
+		return configuredTag, nil
 	}
 
 	return fmt.Sprintf("%s/%s-%s:azdev-deploy-%d",
@@ -207,7 +217,7 @@ func (at *containerAppTarget) generateImageTag() string {
 		strings.ToLower(at.config.Name),
 		strings.ToLower(at.env.GetEnvName()),
 		at.clock.Now().Unix(),
-	)
+	), nil
 }
 
 // NewContainerAppTarget creates the container app service target.

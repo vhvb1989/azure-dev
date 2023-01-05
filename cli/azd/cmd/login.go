@@ -71,7 +71,10 @@ func (lf *loginFlags) Bind(local *pflag.FlagSet, global *internal.GlobalCommandO
 	local.BoolVar(
 		&lf.useDeviceCode,
 		"use-device-code",
-		false,
+		// For Codespaces in VSCode Browser, interactive browser login will 404 when attempting to redirect to localhost
+		// (since azd cannot launch a localhost server when running remotely).
+		// Hence, we default to device-code. See https://github.com/Azure/azure-dev/issues/1006
+		os.Getenv("CODESPACES") == "true",
 		"When true, log in by using a device code instead of a browser.",
 	)
 	local.StringVar(&lf.clientID, "client-id", "", "The client id for the service principal to authenticate with.")
@@ -164,7 +167,7 @@ func (la *loginAction) Run(ctx context.Context) (*actions.ActionResult, error) {
 
 	res := contracts.LoginResult{}
 
-	if cred, err := la.authManager.CredentialForCurrentUser(ctx); errors.Is(err, auth.ErrNoCurrentUser) {
+	if cred, err := la.authManager.CredentialForCurrentUser(ctx, nil); errors.Is(err, auth.ErrNoCurrentUser) {
 		res.Status = contracts.LoginStatusUnauthenticated
 	} else if err != nil {
 		return nil, fmt.Errorf("checking auth status: %w", err)
