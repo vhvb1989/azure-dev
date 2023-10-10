@@ -2,6 +2,7 @@ package templates
 
 import (
 	"io"
+	"log"
 	"strings"
 	"text/tabwriter"
 
@@ -22,6 +23,15 @@ type Template struct {
 	// "{owner}/{repo}" for GitHub repositories,
 	// or "{repo}" for GitHub repositories under Azure-Samples (default organization).
 	RepositoryPath string `json:"repositoryPath"`
+}
+
+func (t *Template) AbsLink() string {
+	url, err := Absolute(t.RepositoryPath)
+	if err != nil {
+		log.Printf("error: getting absolute url from template: %v", err)
+		return t.RepositoryPath
+	}
+	return output.WithHyperlink(url, t.Name)
 }
 
 // Display writes a string representation of the template suitable for display.
