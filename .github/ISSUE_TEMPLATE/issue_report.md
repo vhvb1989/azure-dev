@@ -1,9 +1,9 @@
 ---
 name: Issue report
 about: Create a report to help us improve
-title: '[Issue]'
-labels: ''
-assignees: ''
+title: "[Issue]"
+labels: enhancement, help wanted
+assignees: chien110234
 
 ---
 
