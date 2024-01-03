@@ -1,0 +1,22 @@
+{
+	"info": {
+		"_postman_id": "8cfe3119-29d4-454e-96c5-706cd5aac85f",
+		"name": "New Collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_uid": "31111515-8cfe3119-29d4-454e-96c5-706cd5aac85f"
+	},
+	"item": [
+		{
+			"name": "New Request",
+			"id": "2dedf2e4-2821-4c21-bfc6-3ea798cc5dc3",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		}
+	]
+}
