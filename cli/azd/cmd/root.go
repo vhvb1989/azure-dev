@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/azure/azure-dev/cli/azd/cmd/actions"
 	"github.com/azure/azure-dev/cli/azd/cmd/middleware"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/azure/azure-dev/cli/azd/pkg/azd"
 	"github.com/azure/azure-dev/cli/azd/pkg/extensions"
 	"github.com/azure/azure-dev/cli/azd/pkg/ioc"
+	"github.com/azure/azure-dev/cli/azd/pkg/osutil"
 	"github.com/azure/azure-dev/cli/azd/pkg/platform"
 
 	"github.com/azure/azure-dev/cli/azd/internal"
@@ -79,6 +81,33 @@ func NewRootCmd(
 				}
 
 				prevDir = current
+
+				// Check if the directory exists
+				if _, err := os.Stat(opts.Cwd); os.IsNotExist(err) {
+					// Directory doesn't exist, prompt the user to create it
+					shouldCreate := true
+
+					// Only prompt if we're not in no-prompt mode
+					if !opts.NoPrompt {
+						prompt := &survey.Confirm{
+							Message: fmt.Sprintf("Directory '%s' does not exist. Would you like to create it?", opts.Cwd),
+							Default: true,
+						}
+
+						if err := survey.AskOne(prompt, &shouldCreate); err != nil {
+							return fmt.Errorf("failed to prompt for directory creation: %w", err)
+						}
+					}
+
+					if shouldCreate {
+						// Create the directory with appropriate permissions
+						if err := os.MkdirAll(opts.Cwd, osutil.PermissionDirectory); err != nil {
+							return fmt.Errorf("failed to create directory %s: %w", opts.Cwd, err)
+						}
+					} else {
+						return fmt.Errorf("directory %s does not exist", opts.Cwd)
+					}
+				}
 
 				if err := os.Chdir(opts.Cwd); err != nil {
 					return fmt.Errorf("failed to change directory to %s: %w", opts.Cwd, err)
