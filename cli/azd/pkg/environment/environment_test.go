@@ -253,17 +253,68 @@ func TestInitialEnvStateEmpty(t *testing.T) {
 }
 
 func Test_fixupUnquotedDotenv(t *testing.T) {
-	test := map[string]string{
-		"TEST_SHOULD_NOT_QUOTE": "1",
-		"TEST_SHOULD_QUOTE":     "01",
-	}
+	t.Run("NumericLeadingZeros", func(t *testing.T) {
+		test := map[string]string{
+			"TEST_SHOULD_NOT_QUOTE": "1",
+			"TEST_SHOULD_QUOTE":     "01",
+		}
 
-	dotenv, err := godotenv.Marshal(test)
-	require.NoError(t, err)
-	require.Equal(t, "TEST_SHOULD_NOT_QUOTE=1\nTEST_SHOULD_QUOTE=1", dotenv)
+		dotenv, err := godotenv.Marshal(test)
+		require.NoError(t, err)
+		require.Equal(t, "TEST_SHOULD_NOT_QUOTE=1\nTEST_SHOULD_QUOTE=1", dotenv)
 
-	fixed := fixupUnquotedDotenv(test, dotenv)
-	require.Equal(t, "TEST_SHOULD_NOT_QUOTE=1\nTEST_SHOULD_QUOTE=\"01\"", fixed)
+		fixed := fixupUnquotedDotenv(test, dotenv)
+		require.Equal(t, "TEST_SHOULD_NOT_QUOTE=1\nTEST_SHOULD_QUOTE=\"01\"", fixed)
+	})
+
+	t.Run("JSONArrays", func(t *testing.T) {
+		test := map[string]string{
+			"ARRAY_STRINGS": `["item1","item2","item3"]`,
+			"ARRAY_NUMBERS": `[1,2,3]`,
+			"ARRAY_MIXED":   `["string",123,true]`,
+			"ARRAY_NESTED":  `[["a","b"],["c","d"]]`,
+			"SIMPLE_VALUE":  "hello",
+			"NUMERIC_VALUE": "123",
+			"INVALID_ARRAY": "[not valid json]",
+		}
+
+		dotenv, err := godotenv.Marshal(test)
+		require.NoError(t, err)
+
+		fixed := fixupUnquotedDotenv(test, dotenv)
+
+		// Parse the fixed dotenv to verify the values
+		parsedFixed, err := godotenv.Unmarshal(fixed)
+		require.NoError(t, err)
+
+		// JSON arrays should be unquoted and parseable as JSON
+		require.Equal(t, `["item1","item2","item3"]`, parsedFixed["ARRAY_STRINGS"])
+		require.Equal(t, `[1,2,3]`, parsedFixed["ARRAY_NUMBERS"])
+		require.Equal(t, `["string",123,true]`, parsedFixed["ARRAY_MIXED"])
+		require.Equal(t, `[["a","b"],["c","d"]]`, parsedFixed["ARRAY_NESTED"])
+
+		// Non-array values should remain as they were
+		require.Equal(t, "hello", parsedFixed["SIMPLE_VALUE"])
+		require.Equal(t, "123", parsedFixed["NUMERIC_VALUE"])
+
+		// Invalid arrays should remain quoted (treated as regular strings)
+		require.Equal(t, "[not valid json]", parsedFixed["INVALID_ARRAY"])
+	})
+
+	t.Run("EmptyArray", func(t *testing.T) {
+		test := map[string]string{
+			"EMPTY_ARRAY": `[]`,
+		}
+
+		dotenv, err := godotenv.Marshal(test)
+		require.NoError(t, err)
+
+		fixed := fixupUnquotedDotenv(test, dotenv)
+
+		parsedFixed, err := godotenv.Unmarshal(fixed)
+		require.NoError(t, err)
+		require.Equal(t, `[]`, parsedFixed["EMPTY_ARRAY"])
+	})
 }
 
 func createEnvManager(mockContext *mocks.MockContext, root string) (Manager, *azdcontext.AzdContext) {
