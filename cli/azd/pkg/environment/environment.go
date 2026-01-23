@@ -293,9 +293,15 @@ func fixupUnquotedDotenv(values map[string]string, dotenv string) string {
 
 		// Handle quoted values (check if this is a JSON array that should be unquoted)
 		if len(envValue) > 0 && envValue[0] == '"' {
+			// Verify this is a JSON array and the quoted value matches what godotenv produced
 			if isJSONArray(originalValue) {
-				// Unquote JSON arrays so they can be parsed as arrays downstream
-				entries[idx] = fmt.Sprintf("%s=%s", envKey, originalValue)
+				// godotenv quotes and escapes JSON, so we verify the marshalled value matches expectations
+				// For safety, only unquote if we can confirm this is the godotenv representation
+				expectedQuoted, err := godotenv.Marshal(map[string]string{envKey: originalValue})
+				if err == nil && strings.Contains(expectedQuoted, envValue) {
+					// Unquote JSON arrays so they can be parsed as arrays downstream
+					entries[idx] = fmt.Sprintf("%s=%s", envKey, originalValue)
+				}
 			}
 		} else if len(envValue) > 0 {
 			// Handle unquoted values (numeric fixup for leading zeros)
