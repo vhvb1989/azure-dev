@@ -90,6 +90,109 @@ Some error happened during prompting - the status is `error` and the `message` p
 
 Note that an error prompting leads to a successful result at the HTTP layer (200 OK) but with a special error object. `azd` treats other responses as if the server has an internal bug.
 
-## Open Issues
+## PromptDialog API
 
-- [ ] Some hosts, such as VS, may want to collect a set of prompts up front and present them all on a single page as part of an end to end - how would we support this? It may be that the answer is "that's a separate API" and this solution is simply focused on "when `azd` it self is driving and end to end workflow".
+In addition to the individual prompt API described above, `azd` also supports a `PromptDialog` API that allows collecting multiple prompts in a single request. This is useful for scenarios where the host wants to present all required parameters in a unified dialog.
+
+### When is PromptDialog Used?
+
+The `PromptDialog` API is used when:
+- The console implementation supports it (indicated by `SupportsPromptDialog()` returning true)
+- Multiple related prompts need to be collected together (e.g., infrastructure parameters)
+- The host provides a better UX by showing all inputs in a single dialog
+
+### PromptDialog Request
+
+The same endpoint is used for PromptDialog requests:
+
+`${AZD_UI_PROMPT_ENDPOINT}/prompt?api-version=2024-02-14-preview`
+
+With the same authentication headers as individual prompts.
+
+The request body for a PromptDialog contains:
+
+```typescript
+interface PromptDialogRequest {
+    title: string           // Title for the dialog
+    description: string     // Description or instructions for the dialog
+    prompts: PromptDialogItem[]
+}
+
+interface PromptDialogItem {
+    id: string              // Unique identifier for this prompt
+    kind: string            // Type: "string" | "password" | "select" | etc.
+    displayName: string     // Human-readable name for the prompt
+    description?: string    // Optional help text for this specific prompt
+    defaultValue?: string   // Optional default value
+    required: boolean       // Whether this prompt must be answered
+    choices?: PromptDialogChoice[]  // For select-type prompts
+}
+
+interface PromptDialogChoice {
+    value: string           // The value of this choice
+    description?: string    // Optional description for this choice
+}
+```
+
+### PromptDialog Response
+
+The server should respond with 200 OK and a body containing:
+
+```typescript
+interface PromptDialogResponse {
+    result: "success" | "cancelled" | "error"
+    
+    // present when result is "error"
+    message?: string
+    
+    // present when result is "success"
+    inputs?: PromptDialogInput[]
+}
+
+interface PromptDialogInput {
+    id: string              // Matches the id from the request
+    value: any              // The user's response (type depends on the prompt kind)
+}
+```
+
+### Example PromptDialog Flow
+
+1. `azd` sends a PromptDialog request with multiple infrastructure parameters:
+   ```json
+   {
+     "title": "Infrastructure Parameters",
+     "description": "Provide values for the required infrastructure parameters",
+     "prompts": [
+       {
+         "id": "location",
+         "kind": "select",
+         "displayName": "Azure Location",
+         "description": "The Azure region where resources will be deployed",
+         "required": true,
+         "choices": [
+           {"value": "eastus", "description": "East US"},
+           {"value": "westus", "description": "West US"}
+         ]
+       },
+       {
+         "id": "appName",
+         "kind": "string",
+         "displayName": "Application Name",
+         "required": true
+       }
+     ]
+   }
+   ```
+
+2. The host displays a dialog with all prompts
+
+3. The host responds with:
+   ```json
+   {
+     "result": "success",
+     "inputs": [
+       {"id": "location", "value": "eastus"},
+       {"id": "appName", "value": "myapp"}
+     ]
+   }
+   ```
